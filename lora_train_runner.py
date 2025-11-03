@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -103,7 +104,11 @@ def _install_trainer():
     install_script = TRAINER_DIR / "colab_install.sh"
     if install_script.exists():
         install_script.chmod(0o755)
-        _run_command([str(install_script)], cwd=TRAINER_DIR, env={**os.environ, "PYTHONUNBUFFERED": "1"})
+        venv_dir = TRAINER_DIR / "venv"
+        if venv_dir.exists():
+            shutil.rmtree(venv_dir, ignore_errors=True)
+        env = {**os.environ, "PYTHONUNBUFFERED": "1", "UV_LINK_MODE": "copy"}
+        _run_command([str(install_script)], cwd=TRAINER_DIR, env=env)
 
     if LOAD_TRUNCATED_IMAGES:
         target = KOHYA_DIR / "library" / "train_util.py"
