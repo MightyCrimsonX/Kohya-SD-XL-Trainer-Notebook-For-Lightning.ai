@@ -401,9 +401,18 @@ def install_trainer():
       text = train_network_path.read_text()
     except FileNotFoundError:
       text = None
-    if text is not None and '"." + args.save_model_as)' in text:
-      text = text.replace('"." + args.save_model_as)', 'f"-{num_train_epochs:02d}." + args.save_model_as)')
-      train_network_path.write_text(text)
+    if text is not None:
+      pattern = re.compile(r'"-\{:[0-9]+d\}\."\.format\(([^)]+)\)\s*\+\s*args\.save_model_as')
+
+      def _repl(match: re.Match) -> str:
+        expr = match.group(1).strip()
+        return 'f"-{' + expr + ':02d}." + args.save_model_as'
+
+      new_text, count = pattern.subn(_repl, text)
+      if count:
+        train_network_path.write_text(new_text)
+      else:
+        print("⚠️ No se pudo parchear train_network.py para los nuevos nombres de checkpoint.")
   if FIX_DIFFUSERS:
     deprecation_utils = os.path.join(kohya_dir, "/home/zeus/miniconda3/envs/cloudspace/lib/python3.12/site-packages/diffusers/utils/deprecation_utils.py")
     _run_cmd(f"sed -i 's/if version.parse/if False:#/g' {deprecation_utils}")
