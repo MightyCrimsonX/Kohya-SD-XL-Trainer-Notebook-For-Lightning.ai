@@ -396,7 +396,14 @@ def install_trainer():
     _run_cmd("sed -i 's/from PIL import Image/from PIL import Image, ImageFile\nImageFile.LOAD_TRUNCATED_IMAGES=True/g' library/train_util.py")
   if BETTER_EPOCH_NAMES:
     _run_cmd("sed -i 's/{:06d}/{:02d}/g' library/train_util.py")
-    _run_cmd('sed -i "s/\".\" + args.save_model_as)/\"-{:02d}.\".format(num_train_epochs) + args.save_model_as)/g" train_network.py')
+    train_network_path = Path(kohya_dir) / "train_network.py"
+    try:
+      text = train_network_path.read_text()
+    except FileNotFoundError:
+      text = None
+    if text is not None and '"." + args.save_model_as)' in text:
+      text = text.replace('"." + args.save_model_as)', 'f"-{num_train_epochs:02d}." + args.save_model_as)')
+      train_network_path.write_text(text)
   if FIX_DIFFUSERS:
     deprecation_utils = os.path.join(kohya_dir, "/home/zeus/miniconda3/envs/cloudspace/lib/python3.12/site-packages/diffusers/utils/deprecation_utils.py")
     _run_cmd(f"sed -i 's/if version.parse/if False:#/g' {deprecation_utils}")
@@ -683,11 +690,9 @@ def download_model():
     try:
       test = load_safetensors(model_file)
       del test
-    except Exception:
-      new_model_file = os.path.splitext(model_file)[0] + ".ckpt"
-      _run_cmd(f"mv '{model_file}' '{new_model_file}'")
-      model_file = new_model_file
-      print(f"Renombrado modelo a {model_file}")
+    except Exception as exc:
+      print(f"💥 Error al validar el archivo safetensors {model_file}: {exc}")
+      return False
 
   if model_file.lower().endswith(".ckpt"):
     from torch import load as load_ckpt
