@@ -104,6 +104,12 @@ def _install_trainer():
     install_script = TRAINER_DIR / "colab_install.sh"
     if install_script.exists():
         install_script.chmod(0o755)
+        installer_py = TRAINER_DIR / "installer.py"
+        _replace_in_file(
+            installer_py,
+            "uv venv venv --python 3.10.16",
+            "uv venv venv --python 3.10.16 --link-mode copy",
+        )
         venv_dir = TRAINER_DIR / "venv"
         if venv_dir.exists():
             shutil.rmtree(venv_dir, ignore_errors=True)
