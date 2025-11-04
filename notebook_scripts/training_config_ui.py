@@ -11,12 +11,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Tuple
 
+import os
+import subprocess
+from urllib.parse import urlparse
+
 import ipywidgets as widgets
 from IPython.display import Markdown, display
 from pathlib import Path
 
 
 PROJECTS_ROOT = Path("/teamspace/studios/this_studio/lora_projects")
+MODELS_ROOT = Path("/teamspace/studios/this_studio/models")
 
 
 @dataclass(frozen=True)
@@ -119,6 +124,20 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
         description="training_model",
         style=base_style,
     )
+    custom_model_widget = widgets.Text(
+        value=str(namespace.get("optional_custom_training_model", "")),
+        description="modelo_personalizado",
+        placeholder="URL o ruta local",
+        style=base_style,
+        layout=widgets.Layout(width="100%"),
+    )
+    custom_model_filename_widget = widgets.Text(
+        value=str(namespace.get("custom_model_filename", "")),
+        description="archivo_descarga",
+        placeholder="Opcional (.safetensors)",
+        style=base_style,
+        layout=widgets.Layout(width="100%"),
+    )
     force_load_diffusers_widget = widgets.Dropdown(
         options=[opt.as_tuple() for opt in force_load_diffusers_options],
         value=bool(namespace.get("force_load_diffusers", False)),
@@ -203,6 +222,12 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
         icon="check",
         layout=widgets.Layout(width="auto", align_self="flex-end"),
     )
+    download_button = widgets.Button(
+        description="Descargar modelo personalizado",
+        button_style="info",
+        icon="download",
+        layout=widgets.Layout(width="auto", align_self="flex-end"),
+    )
 
     grid_layout = widgets.Layout(
         grid_template_columns="repeat(2, minmax(0, 1fr))",
@@ -234,12 +259,15 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
         ],
         layout=grid_layout,
     )
+    custom_model_status = widgets.HTML()
 
     def apply_params(_=None) -> None:
         try:
             updates = {
                 "project_name": project_name_widget.value.strip(),
                 "training_model": training_model_widget.value,
+                "optional_custom_training_model": custom_model_widget.value.strip(),
+                "custom_model_filename": custom_model_filename_widget.value.strip(),
                 "force_load_diffusers": bool(force_load_diffusers_widget.value),
                 "resolution": int(resolution_widget.value),
                 "num_repeats": int(num_repeats_widget.value),
@@ -261,6 +289,8 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
         namespace.update(updates)
         unet_lr_widget.value = _format_scientific(updates["unet_lr"])
         text_encoder_lr_widget.value = _format_scientific(updates["text_encoder_lr"])
+        custom_model_widget.value = updates["optional_custom_training_model"]
+        custom_model_filename_widget.value = updates["custom_model_filename"]
 
         project_name_value = updates["project_name"]
         directory_message = ""
@@ -278,6 +308,74 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
 
     apply_button.on_click(apply_params)
 
+    def _infer_filename_from_url(url: str) -> str:
+        parsed = urlparse(url)
+        candidate = Path(parsed.path).name
+        if not candidate:
+            candidate = "custom_model.safetensors"
+        if not candidate.endswith(".safetensors"):
+            candidate = f"{candidate}.safetensors"
+        return candidate
+
+    def download_custom_model(_=None) -> None:
+        url_or_path = custom_model_widget.value.strip()
+        filename_hint = custom_model_filename_widget.value.strip()
+        custom_model_status.value = ""
+
+        if not url_or_path:
+            custom_model_status.value = "<b>Error:</b> proporciona una URL o ruta válida."
+            return
+
+        parsed = urlparse(url_or_path)
+        if parsed.scheme in {"http", "https"}:
+            target_name = filename_hint or _infer_filename_from_url(url_or_path)
+            MODELS_ROOT.mkdir(parents=True, exist_ok=True)
+            target_path = MODELS_ROOT / target_name
+
+            command = [
+                "aria2c",
+                url_or_path,
+                "--console-log-level=warn",
+                "-c",
+                "-s",
+                "16",
+                "-x",
+                "16",
+                "-k",
+                "10M",
+                "-d",
+                str(MODELS_ROOT),
+                "-o",
+                target_name,
+            ]
+
+            try:
+                subprocess.run(command, check=True)
+            except subprocess.CalledProcessError as exc:
+                custom_model_status.value = f"<b>Error al descargar:</b> {exc}"
+                return
+
+            resolved_path = target_path.resolve()
+            namespace["optional_custom_training_model"] = str(resolved_path)
+            custom_model_widget.value = str(resolved_path)
+            apply_params()
+            custom_model_status.value = f"<b>Descarga completada:</b> {resolved_path}"
+        else:
+            expanded_path = Path(os.path.expanduser(url_or_path))
+            if not expanded_path.is_absolute():
+                expanded_path = Path(namespace.get("root_dir", "/teamspace/studios/this_studio")) / expanded_path
+
+            if not expanded_path.exists():
+                custom_model_status.value = f"<b>Error:</b> la ruta {expanded_path} no existe."
+                return
+
+            namespace["optional_custom_training_model"] = str(expanded_path)
+            custom_model_widget.value = str(expanded_path)
+            apply_params()
+            custom_model_status.value = f"<b>Ruta lista:</b> {expanded_path}"
+
+    download_button.on_click(download_custom_model)
+
     display(Markdown("""
 ### Configuración rápida del entrenamiento
 Personaliza tu sesión desde este panel compacto. Haz clic en **Aplicar parámetros** para guardar los cambios.
@@ -287,6 +385,18 @@ Personaliza tu sesión desde este panel compacto. Haz clic en **Aplicar parámet
             [
                 widgets.HTML("<h4 style='margin-bottom:4px;'>Datos básicos</h4>"),
                 basics_grid,
+                widgets.HTML("<h4 style='margin:16px 0 4px;'>Modelo personalizado (opcional)</h4>"),
+                widgets.VBox(
+                    [
+                        custom_model_widget,
+                        custom_model_filename_widget,
+                        widgets.HBox([
+                            widgets.HBox([], layout=widgets.Layout(flex="1")),
+                            download_button,
+                        ]),
+                        custom_model_status,
+                    ]
+                ),
                 widgets.HTML("<h4 style='margin:16px 0 4px;'>Ajustes avanzados</h4>"),
                 advanced_grid,
                 widgets.HBox([widgets.HBox([], layout=widgets.Layout(flex="1")), apply_button]),
