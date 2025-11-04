@@ -124,6 +124,12 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
         description="training_model",
         style=base_style,
     )
+    use_custom_model_widget = widgets.Checkbox(
+        value=bool(namespace.get("use_optional_custom_training_model", False)),
+        description="usar_modelo_descargado",
+        style={"description_width": "160px"},
+        indent=False,
+    )
     custom_model_widget = widgets.Text(
         value=str(namespace.get("optional_custom_training_model", "")),
         description="modelo_personalizado",
@@ -266,6 +272,7 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
             updates = {
                 "project_name": project_name_widget.value.strip(),
                 "training_model": training_model_widget.value,
+                "use_optional_custom_training_model": bool(use_custom_model_widget.value),
                 "optional_custom_training_model": custom_model_widget.value.strip(),
                 "custom_model_filename": custom_model_filename_widget.value.strip(),
                 "force_load_diffusers": bool(force_load_diffusers_widget.value),
@@ -291,6 +298,7 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
         text_encoder_lr_widget.value = _format_scientific(updates["text_encoder_lr"])
         custom_model_widget.value = updates["optional_custom_training_model"]
         custom_model_filename_widget.value = updates["custom_model_filename"]
+        use_custom_model_widget.value = updates["use_optional_custom_training_model"]
 
         project_name_value = updates["project_name"]
         directory_message = ""
@@ -358,6 +366,8 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
             resolved_path = target_path.resolve()
             namespace["optional_custom_training_model"] = str(resolved_path)
             custom_model_widget.value = str(resolved_path)
+            namespace["use_optional_custom_training_model"] = True
+            use_custom_model_widget.value = True
             apply_params()
             custom_model_status.value = f"<b>Descarga completada:</b> {resolved_path}"
         else:
@@ -371,6 +381,8 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
 
             namespace["optional_custom_training_model"] = str(expanded_path)
             custom_model_widget.value = str(expanded_path)
+            namespace["use_optional_custom_training_model"] = True
+            use_custom_model_widget.value = True
             apply_params()
             custom_model_status.value = f"<b>Ruta lista:</b> {expanded_path}"
 
@@ -388,6 +400,7 @@ Personaliza tu sesión desde este panel compacto. Haz clic en **Aplicar parámet
                 widgets.HTML("<h4 style='margin:16px 0 4px;'>Modelo personalizado (opcional)</h4>"),
                 widgets.VBox(
                     [
+                        use_custom_model_widget,
                         custom_model_widget,
                         custom_model_filename_widget,
                         widgets.HBox([

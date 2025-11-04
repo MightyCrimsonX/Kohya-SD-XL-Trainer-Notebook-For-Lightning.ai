@@ -86,23 +86,29 @@ folder_structure = "Organize by project (lora_projects/project_name/dataset)" #@
 #@markdown Decida el modelo que se descargará y utilizará para el entrenamiento. También puedes elegir tu propio modelo pegando su enlace de descarga o proporcionando una ruta dentro de `/teamspace/studios/this_studio`.
 training_model_param = "Illustrious_2.0" # @param ["Pony Diffusion V6 XL","Animagine XL V3","animagine_4.0_zero","Illustrious_0.1","Illustrious_2.0","NoobAI-XL0.75","NoobAI-XL0.5","Stable Diffusion XL 1.0 base","NoobAIXL0_75vpred","RouWei_v080vpred"]
 training_model = globals().get("training_model", training_model_param)
-optional_custom_training_model = "" #@param {type:"string"}
+optional_custom_training_model_param = "" #@param {type:"string"}
+optional_custom_training_model = str(globals().get("optional_custom_training_model", optional_custom_training_model_param)).strip()
 #@markdown Esto forzara el uso del modelo en formato diffusers, puede ser util en ciertos casos. <p>
 #@markdown Manten esto desmarcado para usar un modelo ckpt (.safetensors) para el entrenamiento.
 force_load_diffusers_param = False # @param {"type":"boolean"}
 force_load_diffusers = globals().get("force_load_diffusers", force_load_diffusers_param)
 #@markdown Marca está opción si el modelo custom esta en dicho formato
-custom_model_is_diffusers = False #@param {type:"boolean"}
+custom_model_is_diffusers_param = False #@param {type:"boolean"}
+custom_model_is_diffusers = bool(globals().get("custom_model_is_diffusers", custom_model_is_diffusers_param))
 #@markdown Marca esta opción si tu modelo soporta vpred de lo contrario dejala desmarcada.
-custom_model_is_vpred = False #@param {type:"boolean"}
+custom_model_is_vpred_param = False #@param {type:"boolean"}
+custom_model_is_vpred = bool(globals().get("custom_model_is_vpred", custom_model_is_vpred_param))
+#@markdown Activa esta opción para utilizar el modelo personalizado descargado.
+use_optional_custom_training_model_param = False #@param {type:"boolean"}
+use_optional_custom_training_model = bool(globals().get("use_optional_custom_training_model", use_optional_custom_training_model_param))
 #@markdown Utilice wandb si desea visualizar el progreso de su entrenamiento a lo largo del tiempo.
 wandb_key = "" #@param {type:"string"}
 
-load_diffusers = (custom_model_is_diffusers and len(optional_custom_training_model) > 0) \
-                 or force_load_diffusers
-vpred = custom_model_is_vpred and len(optional_custom_training_model) > 0
+custom_model_selected = use_optional_custom_training_model and len(optional_custom_training_model) > 0
+load_diffusers = (custom_model_is_diffusers and custom_model_selected) or (force_load_diffusers and not custom_model_selected)
+vpred = custom_model_is_vpred and custom_model_selected
 
-if optional_custom_training_model:
+if custom_model_selected:
   model_url = optional_custom_training_model
 elif "Pony" in training_model:
   if load_diffusers:
