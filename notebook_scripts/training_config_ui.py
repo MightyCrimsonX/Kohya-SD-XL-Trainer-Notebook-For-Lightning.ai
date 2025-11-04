@@ -202,6 +202,18 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
         style=base_style,
         layout=number_layout,
     )
+    conv_dim_widget = widgets.IntText(
+        value=int(namespace.get("conv_dim", 16)),
+        description="conv_dim",
+        style=base_style,
+        layout=widgets.Layout(width="100%"),
+    )
+    conv_alpha_widget = widgets.IntText(
+        value=int(namespace.get("conv_alpha", 8)),
+        description="conv_alpha",
+        style=base_style,
+        layout=widgets.Layout(width="100%"),
+    )
     train_batch_size_widget = widgets.IntText(
         value=int(namespace.get("train_batch_size", 8)),
         description="train_batch_size",
@@ -259,6 +271,8 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
             lora_type_widget,
             network_dim_widget,
             network_alpha_widget,
+            conv_dim_widget,
+            conv_alpha_widget,
             train_batch_size_widget,
             precision_widget,
             optimizer_widget,
@@ -285,6 +299,8 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
                 "lora_type": lora_type_widget.value,
                 "network_dim": int(network_dim_widget.value),
                 "network_alpha": int(network_alpha_widget.value),
+                "conv_dim": int(conv_dim_widget.value),
+                "conv_alpha": int(conv_alpha_widget.value),
                 "train_batch_size": int(train_batch_size_widget.value),
                 "precision": precision_widget.value,
                 "optimizer": optimizer_widget.value,
@@ -313,6 +329,22 @@ def render_quick_training_config(namespace: Dict[str, Any]) -> None:
                 return
 
         status_output.value = f"<b>Parámetros actualizados correctamente.</b>{directory_message}"
+
+    def _update_locon_visibility(_=None) -> None:
+        is_locon = lora_type_widget.value.lower() == "locon"
+        display_value = None if is_locon else "none"
+        conv_dim_widget.layout.display = display_value
+        conv_alpha_widget.layout.display = display_value
+        conv_dim_widget.disabled = not is_locon
+        conv_alpha_widget.disabled = not is_locon
+
+    _update_locon_visibility()
+
+    def _handle_lora_change(change: Dict[str, Any]) -> None:
+        if change.get("name") == "value":
+            _update_locon_visibility()
+
+    lora_type_widget.observe(_handle_lora_change, names="value")
 
     apply_button.on_click(apply_params)
 

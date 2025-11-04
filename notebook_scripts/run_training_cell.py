@@ -250,8 +250,16 @@ network_dim = globals().get("network_dim", network_dim_param)
 network_alpha_param = 32 #@param {type:"number", min:1, max:32, step:1}
 network_alpha = globals().get("network_alpha", network_alpha_param)
 #@markdown Los siguientes dos valores solo se aplican a las capas adicionales de LoCon.
-conv_dim = 16 #@param {type:"number", min:1, max:32, step:1}
-conv_alpha = 8 #@param {type:"number", min:1, max:32, step:1}
+conv_dim_param = 16 #@param {type:"number", min:1, max:32, step:1}
+try:
+  conv_dim = int(globals().get("conv_dim", conv_dim_param))
+except (TypeError, ValueError):
+  conv_dim = conv_dim_param
+conv_alpha_param = 8 #@param {type:"number", min:1, max:32, step:1}
+try:
+  conv_alpha = int(globals().get("conv_alpha", conv_alpha_param))
+except (TypeError, ValueError):
+  conv_alpha = conv_alpha_param
 
 network_module = "networks.lora"
 network_args = None
