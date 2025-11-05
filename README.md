@@ -6,4 +6,6 @@ Si se les hace complicado entender todo este notebook, les sugiero comenzar prim
 
 Recomendable solo usar 1 gráfica L4, ya que es suficiente para todo.
 
+La version Mejorada tiene una interfaz mucho mejor y se ha ocultado los codigos.
+
 > Basado en el trabajo de [Kohya-ss](https://github.com/kohya-ss/sd-scripts), [Linaqruf](https://github.com/Linaqruf/kohya-trainer)
